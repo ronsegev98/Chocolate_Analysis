@@ -1,0 +1,535 @@
+
+---
+title: Chocolate Bars Research
+students: Ron Segev, Ran Asanta
+date: June 10, 2022
+output: 
+  rmdformats::readthedown
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+# Background{.tabset .tabset-fade .tabset-pills}
+We have been chosen by an Israeli food company to analyze worldwide chocolate bar and cocoa data. The purpose of our research is to reach a conclusion on which chocolate bars are best for them to import in order to stay competitive in the premium chocolate market in Israel. Our goal is to base our recommendations using different elements that make up chocolate bars, such as cocoa bean origin and number of ingredients. These options do not necessarily have to be similar, but their quality has to be the best of the best.
+
+![Warning: this research will make you want to consume chocolate!](choco1.jpeg)
+
+**Introduction**
+
+In this research we will focus on a chocolate bar data set.  This dataset comes from the 2022 tidyTuesday data.  The original source is "Flavors of Cacao" and was found in an article from Will Canniford on Kaggle.
+
+Before diving into the data, a bit of an introduction to chocolate. Chocolate comes from cocoa beans, usually from South America. In relevance to our data, the percentage of cocoa used in each chocolate bar is displayed.  Also, additional ingredients are used such as salt,cocoa butter, and sugar.  Lastly, each chocolate bar in the data was given a rating from 1-5.
+
+**Goals:**
+
+1. Tidy the dataset
+
+2. Visualize the dataset
+
+3. Analyze the dataset using methods learned throughout our course.
+
+We will examine the relationship between different variables of chocolate, such as cocoa percent, rating, and the origin of the bean. In addition, we will analyze the correlation between origin of the cocoa bean, the country the bar was manufactured in and the rating that the chocolate bar received.  
+
+
+# Part 1 - Import and Tidying Data{.tabset .tabset-fade .tabset-pills}
+First, we need to import the data.
+```{r}
+library(tidyverse)
+chocolate <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-18/chocolate.csv')
+```
+Let's take a brief look at our data, using glimpse().
+
+```{r}
+glimpse(chocolate)
+```
+The following table explains each data type: 
+
+variable | class | description 
+------------- | ------------- | ------------- 
+ref  | integer  | Reference ID, The highest REF numbers were the last entries made.  
+company_manufacturer  | character | Manufacturer name  
+company_location  | character | Manufacturer region  
+review_date  | integer | Review date (year) 
+country_of_bean_origin  | character | Country of origin  
+specific_bean_origin_or_bar_name  | character | Specific bean or bar name 
+cocoa_percent  | character | Cocoa percent (% chocolate)  
+ingredients  | character | Ingredients, ("#" = represents the number of ingredients in the chocolate; B = Beans, S = Sugar, S* = Sweetener other than white cane or beet sugar, C = Cocoa Butter, V = Vanilla, L = Lecithin, Sa = Salt)
+most_memorable_characteristics  | character | Most Memorable Characteristics column is a summary review of the most memorable characteristics of that bar. Terms generally relate to anything from texture, flavor, overall opinion, etc. separated by ','  
+rating  | double | rating between 1-5 
+
+In order to work with the data properly, we need to make a few adjustments.
+
+(1) Adjust the chocolate percentage value into an integer value for calculations later
+
+(2) Organize the data by manufacturing country and origin of cocoa bean.
+
+(3) Organize the ingredients column, separating into a column for integer values based on number of ingredients, as well as boolean values based on ingredients in the bar itself.
+
+(4) Lastly, we analyze the data using the ref values to isolate the top median. The higher ref values represent the newer data.
+```{r}
+chocolate_new <- chocolate %>% 
+  mutate(cocoa_percent = str_remove(cocoa_percent, "%")) %>% 
+  mutate(cocoa_percent = as.numeric(cocoa_percent))
+```
+This code turns the chocolate percentage value into an integer to be easily analyzed later.
+```{r}
+count(chocolate_new,company_location)
+count(chocolate_new,country_of_bean_origin)
+```
+Here we count how many different countries exist in our data, and then proceed to enter them in lists categorized by continents. Our goal here is to isolate the data by continents in order to easily and cleanly visualize our chocolate bar data. Due to their being over 60 different countries, this data is not clearly visualized.
+
+
+```{r}
+North_America<-c("Canada","Martinique","St. Lucia","St.Vincent-Grenadines","U.S.A.","Grenada","Haiti","Jamaica","Tobago","Trinidad","Mexico")
+South_America<-c("Argentina","Bolivia","Brazil","Chile","Colombia","Costa Rica","Dominican Republic","Ecuador","El Salvador","Fiji","Guatemala","Honduras","Peru","Puerto Rico","Suriname","Venezuela","Belize","Bolivia","Brazil","Cuba","Nicaragua","Panama","Papua New Guinea")
+Europe<-c("Amsterdam","Austria","Belgium","Czech Republic","Denmark","Finland","France","Germany","Hungary","Iceland","Ireland","Israel","Italy","Lithuania","Netherlands","Norway","Poland","Portugal","Scotland","Spain","Sweden","Switzerland","U.K.","Wales")
+Africa<-c("Ghana","Madagascar","Nicaragua","Sao Tome","Sao Tome & Principe","South Africa","Cameroon","Congo","DR Congo","Gabon","Ivory Coast","Liberia","Principe","Sierra Leone","Tanzania","Togo","Uganda","Nigeria")
+Asia<-c("India","Japan","Russia","Singapore","South Korea","Taiwan","Thailand","U.A.E.","Vietnam","Burma","China","Indonesia","Malaysia","Sri Lanka","Sulawesi","Sumatra","Philippines")
+Australia_pacific<-c("Australia","Fiji","New Zealand","Vanuatu","Samoa","Solomon Islands","Vanuatu")
+
+chocolate_new['company_continents'] <- NA
+chocolate_new['cocoa_origin_continents'] <- NA
+
+for(i in 1:nrow(chocolate_new))
+{
+
+  if(is.element(chocolate_new$company_location[i], North_America))
+  {
+    
+    chocolate_new$company_continents[i] <- "North_America"
+    
+  }
+  else if(is.element(chocolate_new$company_location[i], South_America)) 
+  {
+   
+    chocolate_new$company_continents[i] <- "South_America"
+  }
+  else if(is.element(chocolate_new$company_location[i], Europe)) 
+  {
+   
+    chocolate_new$company_continents[i] <- "Europe"
+  }
+  else if(is.element(chocolate_new$company_location[i], Africa)) 
+  {
+   
+    chocolate_new$company_continents[i] <- "Africa"
+  }
+  else if(is.element(chocolate_new$company_location[i], Asia)) 
+  {
+    chocolate_new$company_continents[i] <- "Asia"
+  }
+  else if(is.element(chocolate_new$company_location[i], Australia_pacific)) 
+  {
+    chocolate_new$company_continents[i] <- "Australia_pacific"
+  }
+  else  
+  {
+    chocolate_new$cocoa_origin_continents[i] <- "Blend"
+  }
+  
+}
+for(i in 1:nrow(chocolate_new))
+{
+
+  if(is.element(chocolate_new$country_of_bean_origin[i], North_America))
+  {
+    
+    chocolate_new$cocoa_origin_continents[i] <- "North_America"
+    
+  }
+  else if(is.element(chocolate_new$country_of_bean_origin[i], South_America)) 
+  {
+   
+    chocolate_new$cocoa_origin_continents[i] <- "South_America"
+  }
+  else if(is.element(chocolate_new$country_of_bean_origin[i], Europe)) 
+  {
+   
+    chocolate_new$cocoa_origin_continents[i] <- "Europe"
+  }
+  else if(is.element(chocolate_new$country_of_bean_origin[i], Africa)) 
+  {
+   
+    chocolate_new$cocoa_origin_continents[i] <- "Africa"
+  }
+  else if(is.element(chocolate_new$country_of_bean_origin[i], Asia)) 
+  {
+    chocolate_new$cocoa_origin_continents[i] <- "Asia"
+  }
+  else if(is.element(chocolate_new$country_of_bean_origin[i], Australia_pacific)) 
+  {
+    chocolate_new$cocoa_origin_continents[i] <- "Australia_pacific"
+  }
+  else 
+  {
+    chocolate_new$cocoa_origin_continents[i] <- "Blend"
+  }
+  
+}
+```
+Here, we created a list for each continent in which we entered each country that appeared in our count() functions before.  Using two for loops and if conditions, we created two new columns that show what continent the company_location is in as well as the cocoa_bean_origin_location. These two columns can now be used to easily visualize our data based on continent values.
+
+```{r}
+#6-B,S,C,V,L,Sa
+# B = Beans, S = Sugar, S* = Sweetener other than white cane or beet sugar, C = Cocoa Butter, V = Vanilla, L = Lecithin, Sa = Salt)
+
+chocolate_new[is.na(chocolate_new)] = "0"
+chocolate_new['num_of_ingredients'] <- NA 
+chocolate_new['Beans'] <- NA 
+chocolate_new['Sugar'] <- NA 
+chocolate_new['Sweetener'] <- NA 
+chocolate_new['Cocoa_Butter'] <- NA 
+chocolate_new['Vanilla'] <- NA 
+chocolate_new['Lecithin'] <- NA 
+chocolate_new['Salt'] <- NA 
+
+
+chocolate_new <- chocolate_new %>%
+  mutate(Sweetener = (str_detect(ingredients, fixed("S")) & str_detect(ingredients, '\\*'))) %>%
+  
+  mutate(Salt = (str_detect(ingredients,fixed("S")) & str_detect(ingredients,fixed("a")))) %>%
+  
+  mutate(Sugar = (str_detect(ingredients, 'S') & str_detect(ingredients,'\\*', negate = TRUE) & str_detect(ingredients,'a', negate =  TRUE)))  %>%
+  
+  mutate(Beans = str_detect(ingredients, "B")) %>%
+  
+  mutate(Cocoa_Butter = str_detect(ingredients, "C")) %>%
+  
+  mutate(Vanilla = str_detect(ingredients, "V")) %>%
+  
+  mutate(Lecithin = str_detect(ingredients, "L"))   %>%
+  
+  mutate(num_of_ingredients = as.numeric(gsub("([0-9]+).*$", "\\1",ingredients)))
+    
+
+```
+In order to separate each ingredient that a certain chocolate bar contains, we created binary columns for each ingredient. In addition, we created a new column that separated the total number of ingredients in that bar.
+
+
+```{r}
+
+hypothesis_two <- chocolate_new
+hypothesis_three <- chocolate_new
+regression <- chocolate_new
+#copy of table before changes to be used in hypothesis tests and regression later
+
+median_ref = median(chocolate_new$ref)
+chocolate_new <- chocolate_new %>%
+  filter(ref >= median_ref)
+
+chocolate_final = subset(chocolate_new, select = -c(ref,review_date))
+```
+Since ref indicates recently updated data, we organized our data based on samples higher than the median of ref.
+
+In addition, chocolate_final contains our tidy data without irrelevant columns such as ref and review_date.
+
+# Part 2 - Visualization{.tabset .tabset-fade .tabset-pills}
+In order to proceed with researching the top chocolate bars , we will need to properly visualize our data.
+We will start with the larger picture, using data per continent. We will narrow down our results to the top continents, then to countries. This will allow us to "zoom in" in order to reach the best chocolate bars. 
+
+
+
+```{r}
+hypothesis_one <- chocolate_final
+#copy of table before changes to be used in hypothesis tests later
+count_manufacturer <- count(chocolate_final,company_continents)
+
+p1 <- ggplot(chocolate_final, aes(company_continents,rating))
+p1 +  geom_boxplot(fill = "Red") + geom_text(data = count_manufacturer, aes(y = 1.5, label = n))
+```
+(1) Using a Box plot we visualize manufacturer rating by continent.
+
+Here we can conclude that although Australia seems to be the best continent, there are less chocolate bars manufactured there. (as seen by the count function)
+The Box Plot appears as if all continents(except Africa) seem to be exactly the same, but it is important to note that North America has more samples than the rest. We can clearly see this from counting the samples per continent.
+Therefore, we will choose to use chocolate manufactured in North America as this data should be more accurate. This theory will be further analyzed using hypothesis tests(using the saved table hypothesis_one).
+
+```{r}
+count_origin <- count(chocolate_final,cocoa_origin_continents)
+
+p2 <- ggplot(chocolate_final, aes(cocoa_origin_continents, rating))
+p2 +  geom_boxplot(fill = "Red") + geom_text(data = count_origin, aes(y = 1.5, label = n))
+
+
+```
+(2) Using a Box plot we created a visualization of ratings per chocolate bar by their cocoa bean origin continent.
+
+For the same reason that we chose North America before, we can easily see that the top choice here is South America. Our count function proves this choice as most of the cocoa used in chocolate bars worldwide comes from forests in South America.
+
+In these two Box Plots, the medians of all continents are the same(except for Africa). Therefore, we used the count function to choose continents by sample size.
+
+```{r}
+chocolate_final <- chocolate_final %>%
+  filter(grepl('South_America', cocoa_origin_continents))%>%
+  filter(grepl('North_America', company_continents))
+
+p3 <- ggplot(chocolate_final, aes(company_location, rating))
+p3 +  geom_boxplot(fill ="Red") 
+
+```
+Here, we narrowed our results down to chocolate in which the cocoa was harvested in South America and manufactured in North America. This yields chocolate manufactured in Canada and U.S.A.. We can see that the results are very similar, therefore we will continue to use data from both of the countries.
+
+After choosing which countries to use, we want to analyze the optimal number of ingredients for a high rating.
+```{r}
+
+p4 <- ggplot(chocolate_final, aes(x = num_of_ingredients, fill = factor(rating), y = 1))
+p4 +  geom_col(position = "fill") + scale_fill_brewer(palette = "RdYlGn") + coord_flip()  +labs(title= "Plot of rating by number of ingredients", x = "Number of Ingredients",y = "Scale", fill = "Rating")
+
+count(chocolate_final, num_of_ingredients)
+```
+
+After inspecting the rating's on each bar by number of ingredients, and counting them by category (To see if we have enough data), we can see that 2 and 3 ingredients yield the highest rated chocolate bars.
+
+We will check this hypothesis later: 2-3 ingredients bars giving the best rating.
+
+Now we can filter our data, and finally choose the best 5 chocolate bars from American or Canadian manufacturers that use cacao from South America and use 2-3 ingredients in their chocolate bars.
+
+```{r}
+chocolate_final <- chocolate_final %>%
+  select(company_manufacturer, specific_bean_origin_or_bar_name,country_of_bean_origin, cocoa_percent, rating, num_of_ingredients, Beans, Sugar, Sweetener, Cocoa_Butter, Vanilla, Lecithin, Salt) %>%
+           filter(num_of_ingredients %in% (2:3))
+
+
+count(chocolate_final,Beans)
+count(chocolate_final,Sugar)
+count(chocolate_final,Sweetener)
+count(chocolate_final,Cocoa_Butter)
+count(chocolate_final,Vanilla)
+count(chocolate_final,Lecithin)
+count(chocolate_final,Salt)
+
+chocolate_choices <- chocolate_final %>%
+  select(company_manufacturer, specific_bean_origin_or_bar_name,country_of_bean_origin, cocoa_percent, rating, num_of_ingredients,Beans, Sugar, Sweetener, Cocoa_Butter) %>%
+           filter(num_of_ingredients %in% (2:3))  %>%
+           filter(rating >= 4)
+
+```
+After filtering out the data, we used the count function to check the most popular ingredients. We observed that all bars have Beans, Sugar or Sweetener, and none of them have Vanilla, Lecithin, or Salt.
+We can differentiate between the chocolate based on cocoa percentages, sugar , and cocoa butter.
+
+After this analysis, we created a new table chocolate_choices, that also only includes ratings above or equal to 4. We also observed that these bars with ratings equal to 4 have no sweetener and only Sugar, so this variable becomes irrelevant.
+
+Most of our options have 70% cocoa, therefore these are our most popular choices
+
+To conclude, the 5 top chocolate bars (Manufactured in Canada/USA, 2-3 ingredients,cocoa from South America) that we will further analyze are:
+
+
+a. One that has 70% Cocoa, Sugar, and without Cocoa Butter: 
+```{r}
+first_choice <- chocolate_choices %>%
+            filter(cocoa_percent == 70) %>%
+            filter(Sugar == TRUE)%>%
+            filter(Cocoa_Butter == FALSE)
+```
+b. One that has 70% Cocoa, Sugar, and with Cocoa Butter:
+```{r}
+second_choice <- chocolate_choices %>%
+            filter(cocoa_percent == 70) %>%
+            filter(Sugar == TRUE)%>%
+            filter(Cocoa_Butter == TRUE)
+```
+c. One that has over than 70% Cocoa, Sugar and without Cocoa Butter:
+```{r}
+third_choice <- chocolate_choices %>%
+            filter(cocoa_percent > 70) %>%
+            filter(Sugar == TRUE)%>%
+            filter(Cocoa_Butter == FALSE)
+```
+d. One that has over than 70% Cocoa, Sugar and with Cocoa Butter:
+```{r}
+fourth_choice <- chocolate_choices %>%
+            filter(cocoa_percent > 70) %>%
+            filter(Sugar == TRUE)%>%
+            filter(Cocoa_Butter == TRUE)
+```
+e. One that has less than 70% Cocoa (There is only one in the observed data):
+```{r}
+fifth_choice <- chocolate_choices %>%
+            filter(cocoa_percent < 70)
+
+```
+We can see that most of the chocolate that has 70% cacao has a high rating.
+We want to further test this using a double sided hypothesis test over all our data.
+
+# Part 3.1 - Modeling with Hypothesis Tests{.tabset .tabset-fade .tabset-pills}
+We came to some conclusions through observing visualizations, and obviously this is not completely accurate.
+
+We can prove (or disprove) these conclusions using models learned in class.
+
+1. We chose chocolate manufactured in North America since we believe that the data is more accurate, especially since the sample size is larger even when Australia seems to have more chocolate with a rating above 3.25 (median of box plot).
+
+2. We chose to focus on chocolate with 2-3 ingredients as we believe that their rating is the highest. This hypothesis was composed from the plot "rating by number of ingredients"
+
+3. We assumed that chocolate bars with 70 percent cacao are the most popular, but we want to prove this with a hypothesis test. By popular, we are referring to the percentage of values in the total sample.
+
+First, we will test that the mean difference (wherever the rating is at least 3.25) between North America and Australia is equal to 0. 
+
+```{r}
+
+Aus <- hypothesis_one %>%
+  filter(rating >= 3.25)  %>%
+  filter( company_continents == "Australia_pacific") %>%
+  select(rating)
+
+North <- hypothesis_one %>%
+  filter(rating >= 3.25)  %>%
+  filter( company_continents == "North_America") %>%
+  select(rating)
+
+```
+
+**Difference in Means Test**
+
+$H0:$ Mean(North_America) - Mean(Australia_pacific) = 0
+
+$H1:$ Mean(North_America) - Mean(Australia_pacific) > 0
+
+**(while ratings >= 3.25)**
+
+```{r}
+t.test(x = North$rating,y = Aus$rating,alternative = "greater")
+```
+Conclusion:
+
+We reject $H0$ and accept $H1$: meaning our choice to use data from North America was correct. The mean rating from North America comes out is greater than Australia meaning that the difference in means is greater than 0 at a confidence level of 0.95.
+
+**Difference in means - Test 2:**
+
+
+
+$H0:$ the ratings of chocolate bars with 2-3 ingredients is the same as the rest
+
+$H1:$ The ratings of chocolate bars with 2-3 ingredients is higher than those with 0 or 1 or at least 4
+
+**Before testing we need to make sure that the prerequisites to the central limit theorem exist.**
+
+
+```{r}
+two_three_ingredients <- hypothesis_two %>%
+  filter(num_of_ingredients == 2 | num_of_ingredients == 3) 
+  
+count(two_three_ingredients,rating)
+
+rest_ingredients <- hypothesis_two %>%
+  filter(num_of_ingredients == 0 | num_of_ingredients == 1 | num_of_ingredients == 4| num_of_ingredients == 5| num_of_ingredients == 6) 
+
+count(rest_ingredients,rating)
+
+#both counts come out to over 30, meaning we can use the central limit theorem.
+
+t.test(x = two_three_ingredients$rating,y = rest_ingredients$rating,alternative = "greater")
+
+```
+Conclusion:
+We reject $H0$ and accept $H1$: meaning our choice to use data from with 2-3 ingredients was correct. The mean rating from chocolate bars with 2-3 ingredients comes out to be greater than those with more or less ingredients. This shows that the difference in means is greater than 0 at a confidence level of 0.95.
+
+This test was successful, but not completely accurate as it used groups that fit our needs. In our regression tests, we will test each number of ingredients and their affect on rating.
+
+
+**Hypothesis test 3:**
+
+$H0:$ proportion of Chocolate Bars with 70% cocoa is 33% (compared with less than 70% cocoa and more than 70% cocoa)
+
+$H1:$ proportion of Chocolate Bars with 70% cocoa is more than 33% (More popular than the others categories)
+
+```{r}
+Percent = c("Seventy","More","Less")
+Freq = c(sum(70 == hypothesis_three$cocoa_percent), sum(70 > hypothesis_three$cocoa_percent), sum(70 < hypothesis_three$cocoa_percent))
+cocoa_table = data.frame(Percent, Freq)
+prop.test(x = cocoa_table$Freq[1], n = sum(Freq),p = 0.3333 ,alternative = "greater")
+```
+Conclusion:
+We see that the sample estimates that $p > 0.3333$ and that we should not accept $H0$, therefore we accept $H1$ that shows that our assumption choosing 70% percent cocoa as indication was correct with 95% confidence level.
+
+To test how cocoa percent influence the rating of chocolate bars we will use the regression modeling later on.
+
+
+# Part 3.2 - Modeling With Linear Regression{.tabset .tabset-fade .tabset-pills}
+
+In this part we will check how the rating of a chocolate bar is influenced by 2 variables:
+
+1. The number of ingredients.
+
+2. The cocoa percent.
+
+**Regression Test**
+
+We want to test if their is a linear regression between the rating of a chocolate bar and its percentage of cocoa. We added ingredients into the formula to check each ingredient individually in order to test the cacao percent on its rating. Before we reach any conclusions, we need to make sure the residuals distribute normally and are homoscedastic. 
+
+```{r}
+
+model <- lm(rating ~ cocoa_percent + num_of_ingredients + Beans + Sugar + Sweetener + Vanilla + Cocoa_Butter + Lecithin + Salt, data=regression)
+
+ggplot(model,aes(x = cocoa_percent,y = rating, color = factor(Beans + Sugar + Sweetener + Vanilla + Cocoa_Butter + Lecithin + Salt))) + geom_point() + stat_smooth(formula = y ~ x, method = "lm") + scale_colour_manual( name = "Ingredient", values = c("1" = "grey", "2" = "pink", "3" = "blue", "4" = "brown", "5" = "red", "6" = "black"),labels = c("1"="Sugar", "2"="Sweetener", "3"="Vanilla", "4"="Cocoa_Butter", "5"="Lecithin", "6"="Salt")) 
+                                                                                                                                                                     
+#Checking if the residuals distributing normally: 
+plot(model,2)
+
+#Checking Homoscedasticity: 
+plot(model,1)
+```
+
+**We can see that the residuals do not distribute normally. In a normal research we would stop here. In addition, we can see that the variables are heteroscedastic.**
+
+**Nonetheless, we continue as if the distribution is normal.**
+
+
+```{r}
+summary(model)
+
+```
+
+First, we build our regression model. After graphing, we can see that the spread of our points is very wide, therefore we believe that our model is weak. 
+As noted, the residuals do not distribute normally.
+
+We then proceed to summarize our model using rating,cocoa percent, and each ingredient separately(in binary form). We can see that $R^2$ is very small, therefore our model only describes a very small portion of our errors. Regarding cocoa percent, we expected that the higher the percentage, the higher the rating(most of the chocolate in our data is around 70% cocoa). The connection is negative, although it is very close to zero showing that the effect is very minimal. It is important to note here that the regression is significant.
+
+Nonetheless, as expected, the lower the number of ingredients, the higher the rating. The connection is negative, but not significant(as expected). 2-3 ingredients was shown to have higher ratings than those with 0 or 1 ingredient.
+
+In addition, there is a positive connection between adding specific ingredients(except sweetener):
+
+*Beans*: The only ingredient which is significant. Exists in all chocolate bars that have a rating higher than 3.25, as shown before. The connection here is positive.
+
+*Sugar*: Not significant, although we chose to use data with sugar, as all chocolate with a  rating above 4 has sugar and not sweetener.
+
+*Sweetener*: The only negative connection, although minimal. Sweetener and sugar are substitutes, so this connection is logical as sweetener is positive.
+
+*Vanilla*: Positive but very close to zero and not significant. As expected, this ingredient barely affects rating.
+
+*Cocoa Butter*: While found in most bars  with a rating over 4, we would expect that the connection here would be significant.
+
+*Lecithin,Salt*: Positive connection, but we expected that the effect on rating for each one would be weaker. Not significant
+
+It is important to note that this model in regards to ingredients (except for beans) is not significant, therefore not completely accurate.
+
+From the $F$-statistic test, we can say that we deny $H0$ , and accept $H1$, meaning the variables are dependent. 
+
+($PV < 0.05$  ->  $Bi\neq0$) 
+
+
+As bonus, we want to check if we can improve the model by removing variables using 'backward' steps:
+```{r}
+model_backwards<- step(model, direction = "backward")
+summary(model_backwards)
+```
+We can conclude from the backward linear model, that if we remove vanilla and sweetener (as AIC score is the lowest), we can describe the rating better with the other ingredients, cocoa percent and number of ingredients. We can notice that all the variables of this new model are significant so this model is more accurate than the previous one shown above. 
+We can conclude the same conclusions as the original model. 
+($Bi$ of each variable are similar to the original model; Small $R^2$ and $F$-statistic that shows $Bi\neq0$) 
+
+
+# Conclusion{.tabset .tabset-fade .tabset-pills}
+Throughout our research, we organized our raw chocolate data, visualized certain variables, and conducted tests using hypotheses and linear regression. Our goal was supply our Israeli manufacturer with 5 unique chocolate bars that are worth importing. 
+
+We assumed and then proved using the methods stated above: 
+The best chocolate first begins with cocoa that was harvested from South America. Next, the cocoa is manufactured into chocolate bars in North America(specifically in Canada and U.S.A.).In addition, these bars need to contain 2-3 ingredients. These ingredients include Beans,Sugar, and sometimes Cocoa Butter. Chocolate bars that fit in to these categories yielded not only high ratings, but also micro-samples containing the highest rated chocolate bars out of our larger data sample.
+
+We found that it is difficult to choose a specific bar for each category, therefore our manufacturer simply needs to choose from these micro-samples. From our research, we can confidently conclude that whichever bars that our supplier will choose will be the right choice.
+
+Overall, we are very satisfied with these results and hope to work with this Israeli manufacturer in the future.
+
+![](pexels-pixabay-65882.jpg)
+
+
+
+
